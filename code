@@ -1,0 +1,61 @@
+
+library(readr)
+library(ggplot2)
+library(tidyverse)
+cars <- read_csv("C:/Users/CXY-XDLW/Desktop/11.csv",locale = locale(encoding = "GBK"))
+str(cars)
+
+carsdata <- cars %>% 
+  filter(`年份` != 2022)
+
+p <- carsdata %>% 
+ggplot(aes(x = `年份`,y = `新能源汽车`)) + 
+  geom_point() +
+  theme_bw()
+  
+q <- cars %>% 
+ggplot(aes(x = `年份`,y = `纯电动汽车`)) +
+  geom_point() +
+  theme_bw()
+
+# 对纯电动汽车预测
+fit <- lm(`纯电动汽车` ~ `年份`,data = carsdata)
+summary(fit)
+
+fit1 <- lm(`纯电动汽车` ~ `年份` + I(`年份`^2),data = carsdata) 
+summary(fit1)
+fit1$residuals
+
+new_data <- data.frame(`年份` = c(2022,2023,2024,2025))
+prediction <- predict(fit1,new_data,interval = "confidence")
+pred_gg <- tibble(prediction,new_data)
+
+
+# 对新能源汽车预测
+
+model <- lm(`新能源汽车` ~ `年份`,data = carsdata)
+summary(model)
+model1 <- lm(`新能源汽车` ~ `年份` + I(`年份`^2),data = carsdata)
+summary(model1)
+prediction1 <- predict(model1,new_data,interval = "confidence")
+
+# results
+data_hb <- cbind(new_data,prediction1) %>% 
+  as_tibble() %>% 
+  select(年份,fit) %>% 
+  set_names("年份","新能源汽车")%>% 
+  cbind(as_tibble(prediction)) %>% 
+  select(年份,新能源汽车,fit) %>% 
+  set_names("年份","新能源汽车","纯电动汽车")
+
+final_re <- full_join(carsdata,data_hb)
+write_csv(final_re,"C:/Users/CXY-XDLW/Desktop/11results.csv")
+
+# 可视化
+
+final_re %>% 
+  pivot_longer(-年份,names_to = "汽车类型",values_to = "数量") %>% 
+  ggplot(aes(x = 年份,y = 数量,fill = 汽车类型)) +
+  geom_bar(stat = "identity",position = "dodge",width = 0.8) +
+  theme_bw() +
+  coord_fixed(.008)
